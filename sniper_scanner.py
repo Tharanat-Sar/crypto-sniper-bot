@@ -14,7 +14,8 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-exchange = ccxt.binance({"enableRateLimit": True})
+# เปลี่ยนเป็น OKX เพื่อให้ GitHub Actions (US Server) ดึงข้อมูลตลาดได้โดยไม่ติดบล็อก HTTP 451
+exchange = ccxt.okx({"enableRateLimit": True})
 
 # 5 เหรียญหลักตาม Sniper Playbook
 WATCHLIST = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "DOGE/USDT"]
