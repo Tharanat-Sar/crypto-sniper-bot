@@ -4,7 +4,10 @@ on:
   schedule:
     # รันทุก 15 นาที ช่วง 14:00 - 23:45 น. เวลาไทย (07:00 - 16:45 UTC)
     - cron: '*/15 7-16 * * *'
-  workflow_dispatch: # ปุ่มกดสั่งรันมือทดสอบได้
+  workflow_dispatch:
+
+permissions:
+  contents: write  # ให้สิทธิ์เซฟไฟล์ผลการเทรดกลับเข้า GitHub
 
 jobs:
   scan:
@@ -30,3 +33,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python sniper_scanner.py
+
+      - name: Commit and Push Trade Log
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add trades.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update paper trading ledger [skip ci]" && git push)
