@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1789898783,
+    "symbol": "BTC/USDT",
+    "entry": 80469.4,
+    "sl": 79664.706,
+    "tp": 81676.441,
+    "status": "OPEN",
+    "opened_at": "2026-09-20 10:06",
+    "closed_at": null,
+    "pnl_pct": null,
+    "ai_reason": "ทุกข้อกำหนดเป็นไปตามกฎเหล็ก"
+  }
+]
