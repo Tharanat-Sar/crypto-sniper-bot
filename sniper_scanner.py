@@ -7,6 +7,7 @@ import pandas as pd
 from openai import OpenAI
 from dotenv import load_dotenv
 
+# โหลด Environment Variables
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -34,6 +35,7 @@ def save_trades(trades):
         json.dump(trades, f, ensure_ascii=False, indent=2)
 
 def send_telegram_alert(message: str):
+    """ส่งข้อความแจ้งเตือนเข้า Telegram"""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -45,7 +47,7 @@ def send_telegram_alert(message: str):
     except Exception as e:
         print(f"❌ Telegram Error: {e}")
 
-# --- Indicators ---
+# --- ฟังก์ชันคำนวณทางเทคนิค (Pure Pandas) ---
 def calculate_ema(series, length):
     return series.ewm(span=length, adjust=False).mean()
 
@@ -57,6 +59,11 @@ def calculate_rsi(series, period=14):
     return 100 - (100 / (1 + rs))
 
 def calculate_squeeze(df):
+    """
+    คำนวณ Volatility Squeeze (Bollinger Bands vs Keltner Channels):
+    - SQUEEZE_ON: กรอบ BB บีบตัวอยู่ใน KC (ช่วงสะสมพลัง ราคายังไม่เลือกทาง)
+    - SQUEEZE_FIRE: กรอบ BB ขยายตัวทะลุ KC ออกมา (มีโมเมนตัมระเบิดตัว)
+    """
     basis = df["close"].rolling(window=20).mean()
     dev = df["close"].rolling(window=20).std()
     upper_bb = basis + (dev * 2.0)
@@ -100,7 +107,7 @@ def update_open_positions():
         tp = trade["tp"]
         sl = trade["sl"]
 
-        # ชน TP (+1.5%)
+        # ชน Take Profit (+1.5%)
         if curr_price >= tp:
             trade["status"] = "WIN"
             trade["exit_price"] = curr_price
@@ -115,7 +122,7 @@ def update_open_positions():
             )
             send_telegram_alert(msg)
 
-        # ชน SL (-1.0%)
+        # ชน Stop Loss (-1.0%)
         elif curr_price <= sl:
             trade["status"] = "LOSS"
             trade["exit_price"] = curr_price
@@ -133,32 +140,53 @@ def update_open_positions():
     if updated:
         save_trades(trades)
 
-# --- ระบบสรุปผลรายงาน (Daily / Weekly / Monthly Report) ---
+# --- ระบบสรุปผลรายงาน (Daily / Weekly Report แบบเห็นไม้ค้าง) ---
 def generate_summary_reports():
     trades = load_trades()
     if not trades:
         return
 
-    # เวลาไทย (UTC + 7)
+    # คำนวณเวลาไทย (UTC + 7)
     now_th = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
     today_str = now_th.strftime("%Y-%m-%d")
 
-    # สรุปทุกรอบ 23:45 น. ของวัน
+    # ส่งสรุปรอบ 23:45 น. ของทุกวัน
     if now_th.hour == 23 and now_th.minute >= 40:
+        opened_today = [t for t in trades if t.get("opened_at", "").startswith(today_str)]
         closed_today = [t for t in trades if t.get("status") in ["WIN", "LOSS"] and t.get("closed_at", "").startswith(today_str)]
+        
         wins = [t for t in closed_today if t["status"] == "WIN"]
         losses = [t for t in closed_today if t["status"] == "LOSS"]
         total_closed = len(closed_today)
-        win_rate = (len(wins) / total_closed * 100) if total_closed > 0 else 0
-        total_pnl = sum([t.get("pnl_pct", 0) for t in closed_today])
+        win_rate = (len(wins) / total_closed * 100) if total_closed > 0 else 0.0
+        realized_pnl = sum([t.get("pnl_pct", 0) for t in closed_today])
+
+        # สรุปไม้ที่ยังถือข้ามวัน (Holding)
+        open_positions = [t for t in trades if t.get("status") == "OPEN"]
+        open_text = ""
+        if open_positions:
+            open_text = "\n\n⏳ *[ไม้ที่กำลังถือลุ้นต่อ (Holding)]:*\n"
+            for op in open_positions:
+                sym = op["symbol"]
+                try:
+                    curr = exchange.fetch_ticker(sym)["last"]
+                    unrealized = ((curr - op["entry"]) / op["entry"]) * 100
+                    pnl_icon = "🟢" if unrealized >= 0 else "🔴"
+                    open_text += f"• `{sym}`: เข้า `{op['entry']}` | ล่าสุด `{curr}` ({pnl_icon} {unrealized:+.2f}%)\n"
+                except Exception:
+                    open_text += f"• `{sym}`: เข้า `{op['entry']}` (รอเช็คราคา)\n"
+        else:
+            open_text = "\n\n⏳ *ไม้ที่ถือค้างอยู่:* ไม่มี (พอร์ตว่าง 100%)"
 
         daily_msg = (
             f"📋 *[DAILY SUMMARY REPORT - {today_str}]*\n"
             f"------------------------------------\n"
-            f"🎯 ไม้ที่ปิดวันนี้: `{total_closed}` ไม้\n"
-            f"🟢 ชนะ (Win): `{len(wins)}` | 🔴 แพ้ (Loss): `{len(losses)}`\n"
+            f"🎯 ออเดอร์เปิดใหม่วันนี้: `{len(opened_today)}` ไม้\n"
+            f"📦 ไม้ที่ปิดรอบวันนี้: `{total_closed}` ไม้\n"
+            f"🟢 ชนะ (TP): `{len(wins)}` | 🔴 แพ้ (SL): `{len(losses)}`\n"
             f"🏆 Win Rate วันนี้: *{win_rate:.1f}%*\n"
-            f"📈 กำไรรวมวันนี้ (PnL): *{total_pnl:+.2f}%*\n"
+            f"📈 กำไรจริงที่ปิดแล้ว (Realized PnL): *{realized_pnl:+.2f}%*"
+            f"{open_text}\n"
             f"------------------------------------"
         )
         send_telegram_alert(daily_msg)
@@ -168,15 +196,17 @@ def generate_summary_reports():
         all_closed = [t for t in trades if t.get("status") in ["WIN", "LOSS"]]
         w = len([t for t in all_closed if t["status"] == "WIN"])
         l = len([t for t in all_closed if t["status"] == "LOSS"])
-        wr = (w / len(all_closed) * 100) if all_closed else 0
+        wr = (w / len(all_closed) * 100) if all_closed else 0.0
         cum_pnl = sum([t.get("pnl_pct", 0) for t in all_closed])
+        active_count = len([t for t in trades if t.get("status") == "OPEN"])
 
         weekly_msg = (
             f"📊 *[WEEKLY PERFORMANCE REPORT]*\n"
             f"------------------------------------\n"
-            f"📦 ออเดอร์สะสมทั้งหมด: `{len(all_closed)}` ไม้\n"
+            f"📦 ไม้ที่ปิดสมบูรณ์สะสม: `{len(all_closed)}` ไม้\n"
+            f"⏳ ไม้ที่ยังถืออยู่: `{active_count}` ไม้\n"
             f"🎯 Win Rate สะสมรวม: *{wr:.1f}%*\n"
-            f"💰 PnL สุทธิสะสม: *{cum_pnl:+.2f}%*\n"
+            f"💰 Realized PnL สุทธิสะสม: *{cum_pnl:+.2f}%*\n"
             f"------------------------------------"
         )
         send_telegram_alert(weekly_msg)
@@ -184,7 +214,7 @@ def generate_summary_reports():
 def scan_symbol(symbol: str):
     print(f"\n🔍 กำลังตรวจสอบ {symbol}...")
 
-    # ตรวจสอบว่ามีไม้ของเหรียญนี้เปิดค้างอยู่หรือไม่ (เปิดได้ทีละ 1 ไม้ต่อ 1 เหรียญ)
+    # ตรวจสอบว่ามีไม้ของเหรียญนี้เปิดค้างอยู่หรือไม่ (ไม่เปิดซ้ำ)
     trades = load_trades()
     for t in trades:
         if t.get("symbol") == symbol and t.get("status") == "OPEN":
@@ -270,7 +300,6 @@ def scan_symbol(symbol: str):
         sl = decision_data["sl"]
         tp = decision_data["tp"]
 
-        # บันทึกไม้ใหม่เข้า Ledger
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         new_trade = {
             "id": int(datetime.datetime.now().timestamp()),
