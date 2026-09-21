@@ -18,10 +18,11 @@
     "entry": 81882.6,
     "sl": 81063.774,
     "tp": 83110.839,
-    "status": "OPEN",
+    "status": "WIN",
     "opened_at": "2026-09-21 08:27",
-    "closed_at": null,
-    "pnl_pct": null,
-    "ai_reason": "ทุกเกณฑ์เป็นไปตามที่กำหนด"
+    "closed_at": "2026-09-21 08:40",
+    "pnl_pct": 2.24,
+    "ai_reason": "ทุกเกณฑ์เป็นไปตามที่กำหนด",
+    "exit_price": 83718.5
   }
 ]
