@@ -11,5 +11,17 @@
     "pnl_pct": 1.85,
     "ai_reason": "ทุกข้อกำหนดเป็นไปตามกฎเหล็ก",
     "exit_price": 81956.2
+  },
+  {
+    "id": 1789979233,
+    "symbol": "BTC/USDT",
+    "entry": 81882.6,
+    "sl": 81063.774,
+    "tp": 83110.839,
+    "status": "OPEN",
+    "opened_at": "2026-09-21 08:27",
+    "closed_at": null,
+    "pnl_pct": null,
+    "ai_reason": "ทุกเกณฑ์เป็นไปตามที่กำหนด"
   }
 ]
