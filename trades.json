@@ -24,5 +24,17 @@
     "pnl_pct": 2.24,
     "ai_reason": "ทุกเกณฑ์เป็นไปตามที่กำหนด",
     "exit_price": 83718.5
+  },
+  {
+    "id": 1790069864,
+    "symbol": "AVAX/USDT",
+    "entry": 10.894,
+    "sl": 10.7851,
+    "tp": 11.0574,
+    "status": "OPEN",
+    "opened_at": "2026-09-22 09:37",
+    "closed_at": null,
+    "pnl_pct": null,
+    "ai_reason": "ปฏิบัติตามทุกเกณฑ์การซื้อ"
   }
 ]
