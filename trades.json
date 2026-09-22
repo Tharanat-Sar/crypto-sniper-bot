@@ -31,10 +31,11 @@
     "entry": 10.894,
     "sl": 10.7851,
     "tp": 11.0574,
-    "status": "OPEN",
+    "status": "WIN",
     "opened_at": "2026-09-22 09:37",
-    "closed_at": null,
-    "pnl_pct": null,
-    "ai_reason": "ปฏิบัติตามทุกเกณฑ์การซื้อ"
+    "closed_at": "2026-09-22 15:06",
+    "pnl_pct": 2.22,
+    "ai_reason": "ปฏิบัติตามทุกเกณฑ์การซื้อ",
+    "exit_price": 11.136
   }
 ]
