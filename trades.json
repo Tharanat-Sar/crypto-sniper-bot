@@ -37,5 +37,29 @@
     "pnl_pct": 2.22,
     "ai_reason": "ปฏิบัติตามทุกเกณฑ์การซื้อ",
     "exit_price": 11.136
+  },
+  {
+    "id": 1790268784,
+    "symbol": "BTC/USDT",
+    "entry": 84550.1,
+    "sl": 83704.599,
+    "tp": 85818.3515,
+    "status": "OPEN",
+    "opened_at": "2026-09-24 16:53",
+    "closed_at": null,
+    "pnl_pct": null,
+    "ai_reason": "符合所有交易标准，风险可控"
+  },
+  {
+    "id": 1790268786,
+    "symbol": "ETH/USDT",
+    "entry": 2689.77,
+    "sl": 2662.8723,
+    "tp": 2730.1165,
+    "status": "OPEN",
+    "opened_at": "2026-09-24 16:53",
+    "closed_at": null,
+    "pnl_pct": null,
+    "ai_reason": "ทุกเงื่อนไขถูกต้องและมีแรงสนับสนุนจาก SQUEEZE_FIRE"
   }
 ]
