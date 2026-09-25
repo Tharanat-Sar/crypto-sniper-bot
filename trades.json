@@ -101,5 +101,17 @@
     "pnl_pct": -1.59,
     "ai_reason": "สอดคล้องกับกฎเหล็กทั้งหมด",
     "exit_price": 10.256
+  },
+  {
+    "id": 1790346429,
+    "symbol": "DOGE/USDT",
+    "entry": 0.09714,
+    "sl": 0.0962,
+    "tp": 0.0986,
+    "status": "OPEN",
+    "opened_at": "2026-09-25 14:27",
+    "closed_at": null,
+    "pnl_pct": null,
+    "ai_reason": "ทุกเกณฑ์ผ่าน ยกเว้น gap_pct เกิน 0.1%"
   }
 ]
