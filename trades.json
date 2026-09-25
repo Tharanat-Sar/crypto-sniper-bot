@@ -68,10 +68,11 @@
     "entry": 117.51,
     "sl": 116.3349,
     "tp": 119.2726,
-    "status": "OPEN",
+    "status": "WIN",
     "opened_at": "2026-09-25 09:26",
-    "closed_at": null,
-    "pnl_pct": null,
-    "ai_reason": "ทุกเงื่อนไขครบถ้วนและมี SQUEEZE_FIRE"
+    "closed_at": "2026-09-25 11:06",
+    "pnl_pct": 2.28,
+    "ai_reason": "ทุกเงื่อนไขครบถ้วนและมี SQUEEZE_FIRE",
+    "exit_price": 120.19
   }
 ]
