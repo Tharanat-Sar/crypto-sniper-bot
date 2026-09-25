@@ -74,5 +74,17 @@
     "pnl_pct": 2.28,
     "ai_reason": "ทุกเงื่อนไขครบถ้วนและมี SQUEEZE_FIRE",
     "exit_price": 120.19
+  },
+  {
+    "id": 1790342842,
+    "symbol": "AVAX/USDT",
+    "entry": 10.534,
+    "sl": 10.4287,
+    "tp": 10.692,
+    "status": "OPEN",
+    "opened_at": "2026-09-25 13:27",
+    "closed_at": null,
+    "pnl_pct": null,
+    "ai_reason": "ทุกเงื่อนไขครบถ้วนตามกฎเหล็ก"
   }
 ]
