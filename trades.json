@@ -44,11 +44,12 @@
     "entry": 84550.1,
     "sl": 83704.599,
     "tp": 85818.3515,
-    "status": "OPEN",
+    "status": "LOSS",
     "opened_at": "2026-09-24 16:53",
-    "closed_at": null,
-    "pnl_pct": null,
-    "ai_reason": "符合所有交易标准，风险可控"
+    "closed_at": "2026-09-25 14:07",
+    "pnl_pct": -1.36,
+    "ai_reason": "符合所有交易标准，风险可控",
+    "exit_price": 83396.9
   },
   {
     "id": 1790268786,
@@ -94,10 +95,11 @@
     "entry": 10.422,
     "sl": 10.3178,
     "tp": 10.5783,
-    "status": "OPEN",
+    "status": "LOSS",
     "opened_at": "2026-09-25 13:53",
-    "closed_at": null,
-    "pnl_pct": null,
-    "ai_reason": "สอดคล้องกับกฎเหล็กทั้งหมด"
+    "closed_at": "2026-09-25 14:07",
+    "pnl_pct": -1.59,
+    "ai_reason": "สอดคล้องกับกฎเหล็กทั้งหมด",
+    "exit_price": 10.256
   }
 ]
