@@ -81,10 +81,23 @@
     "entry": 10.534,
     "sl": 10.4287,
     "tp": 10.692,
-    "status": "OPEN",
+    "status": "LOSS",
     "opened_at": "2026-09-25 13:27",
+    "closed_at": "2026-09-25 13:53",
+    "pnl_pct": -1.32,
+    "ai_reason": "ทุกเงื่อนไขครบถ้วนตามกฎเหล็ก",
+    "exit_price": 10.395
+  },
+  {
+    "id": 1790344438,
+    "symbol": "AVAX/USDT",
+    "entry": 10.422,
+    "sl": 10.3178,
+    "tp": 10.5783,
+    "status": "OPEN",
+    "opened_at": "2026-09-25 13:53",
     "closed_at": null,
     "pnl_pct": null,
-    "ai_reason": "ทุกเงื่อนไขครบถ้วนตามกฎเหล็ก"
+    "ai_reason": "สอดคล้องกับกฎเหล็กทั้งหมด"
   }
 ]
