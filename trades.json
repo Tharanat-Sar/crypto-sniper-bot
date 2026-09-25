@@ -61,5 +61,17 @@
     "closed_at": null,
     "pnl_pct": null,
     "ai_reason": "ทุกเงื่อนไขถูกต้องและมีแรงสนับสนุนจาก SQUEEZE_FIRE"
+  },
+  {
+    "id": 1790328406,
+    "symbol": "SOL/USDT",
+    "entry": 117.51,
+    "sl": 116.3349,
+    "tp": 119.2726,
+    "status": "OPEN",
+    "opened_at": "2026-09-25 09:26",
+    "closed_at": null,
+    "pnl_pct": null,
+    "ai_reason": "ทุกเงื่อนไขครบถ้วนและมี SQUEEZE_FIRE"
   }
 ]
