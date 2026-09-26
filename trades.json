@@ -113,5 +113,17 @@
     "closed_at": null,
     "pnl_pct": null,
     "ai_reason": "ทุกเกณฑ์ผ่าน ยกเว้น gap_pct เกิน 0.1%"
+  },
+  {
+    "id": 1790411175,
+    "symbol": "BTC/USDT",
+    "entry": 84077.6,
+    "sl": 83236.824,
+    "tp": 85338.764,
+    "status": "OPEN",
+    "opened_at": "2026-09-26 08:26",
+    "closed_at": null,
+    "pnl_pct": null,
+    "ai_reason": "ทุกกฎเหล็กเป็นไปตามเกณฑ์ที่กำหนด"
   }
 ]
