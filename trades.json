@@ -57,11 +57,13 @@
     "entry": 2689.77,
     "sl": 2662.8723,
     "tp": 2730.1165,
-    "status": "OPEN",
+    "status": "TIME_STOP",
     "opened_at": "2026-09-24 16:53",
-    "closed_at": null,
-    "pnl_pct": null,
-    "ai_reason": "ทุกเงื่อนไขถูกต้องและมีแรงสนับสนุนจาก SQUEEZE_FIRE"
+    "closed_at": "2026-09-26 11:38",
+    "pnl_pct": 0.01,
+    "ai_reason": "ทุกเงื่อนไขถูกต้องและมีแรงสนับสนุนจาก SQUEEZE_FIRE",
+    "highest_price": 2689.99,
+    "exit_price": 2689.99
   },
   {
     "id": 1790328406,
@@ -112,7 +114,8 @@
     "opened_at": "2026-09-25 14:27",
     "closed_at": null,
     "pnl_pct": null,
-    "ai_reason": "ทุกเกณฑ์ผ่าน ยกเว้น gap_pct เกิน 0.1%"
+    "ai_reason": "ทุกเกณฑ์ผ่าน ยกเว้น gap_pct เกิน 0.1%",
+    "highest_price": 0.09782
   },
   {
     "id": 1790411175,
@@ -124,6 +127,7 @@
     "opened_at": "2026-09-26 08:26",
     "closed_at": null,
     "pnl_pct": null,
-    "ai_reason": "ทุกกฎเหล็กเป็นไปตามเกณฑ์ที่กำหนด"
+    "ai_reason": "ทุกกฎเหล็กเป็นไปตามเกณฑ์ที่กำหนด",
+    "highest_price": 84193.6
   }
 ]
