@@ -2,8 +2,8 @@ name: Crypto Sniper Scanner
 
 on:
   schedule:
-    # รันทุก 15 นาที ช่วง 14:00 - 23:45 น. เวลาไทย (07:00 - 16:45 UTC)
-    - cron: '*/15 7-16 * * *'
+    # รันทุก 15 นาที ระหว่าง 14:00 ถึง 03:00 น. เวลาไทย (07:00 ถึง 20:00 UTC)
+    - cron: '*/15 7-20 * * *'
   workflow_dispatch:
 
 permissions:
