@@ -110,12 +110,13 @@
     "entry": 0.09714,
     "sl": 0.0962,
     "tp": 0.0986,
-    "status": "OPEN",
+    "status": "TIME_STOP",
     "opened_at": "2026-09-25 14:27",
-    "closed_at": null,
-    "pnl_pct": null,
+    "closed_at": "2026-09-26 14:40",
+    "pnl_pct": 0.37,
     "ai_reason": "ทุกเกณฑ์ผ่าน ยกเว้น gap_pct เกิน 0.1%",
-    "highest_price": 0.09782
+    "highest_price": 0.09782,
+    "exit_price": 0.0975
   },
   {
     "id": 1790411175,
@@ -129,5 +130,20 @@
     "pnl_pct": null,
     "ai_reason": "ทุกกฎเหล็กเป็นไปตามเกณฑ์ที่กำหนด",
     "highest_price": 84193.6
+  },
+  {
+    "id": 1790433619,
+    "symbol": "ETH/USDT",
+    "entry": 2688.59,
+    "highest_price": 2688.59,
+    "sl": 2661.7041,
+    "tp": 2728.9189,
+    "status": "OPEN",
+    "opened_at": "2026-09-26 14:40",
+    "closed_at": null,
+    "pnl_pct": null,
+    "is_breakeven": false,
+    "trailing_active": false,
+    "ai_reason": "ทุกเงื่อนไขเป็นไปตามที่กำหนด"
   }
 ]
