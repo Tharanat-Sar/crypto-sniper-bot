@@ -124,13 +124,14 @@
     "entry": 84077.6,
     "sl": 84077.6,
     "tp": 85338.764,
-    "status": "OPEN",
+    "status": "TIME_STOP",
     "opened_at": "2026-09-26 08:26",
-    "closed_at": null,
-    "pnl_pct": null,
+    "closed_at": "2026-09-27 08:27",
+    "pnl_pct": 0.85,
     "ai_reason": "ทุกกฎเหล็กเป็นไปตามเกณฑ์ที่กำหนด",
     "highest_price": 84835.3,
-    "is_breakeven": true
+    "is_breakeven": true,
+    "exit_price": 84794.4
   },
   {
     "id": 1790433619,
