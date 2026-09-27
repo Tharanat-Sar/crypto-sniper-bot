@@ -179,5 +179,20 @@
     "is_breakeven": false,
     "trailing_active": false,
     "ai_reason": "ทุกข้อที่กำหนดเป็นไปตามกฎเหล็ก"
+  },
+  {
+    "id": 1790532710,
+    "symbol": "SOL/USDT",
+    "entry": 122.08,
+    "highest_price": 122.08,
+    "sl": 120.8592,
+    "tp": 123.9112,
+    "status": "OPEN",
+    "opened_at": "2026-09-27 18:11",
+    "closed_at": null,
+    "pnl_pct": null,
+    "is_breakeven": false,
+    "trailing_active": false,
+    "ai_reason": "ทุกเงื่อนไขเป็นไปตามที่กำหนด"
   }
 ]
