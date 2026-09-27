@@ -69,7 +69,7 @@ def send_telegram_alert(message: str):
     }
     try:
         requests.post(url, json=payload, timeout=10)
-        time.sleep(1.5)  # เว้น 1.5 วินาที กันโดน Telegram บล็อก/ดรอปข้อความ
+        time.sleep(1.5)  # เว้น 1.5 วินาที ป้องกัน Telegram บล็อกหรือการ์ดตกหล่น
     except Exception as e:
         print(f"❌ Telegram Error: {e}")
 
@@ -128,7 +128,10 @@ def update_open_positions():
         entry = float(trade["entry"])
         sl = float(trade["sl"])
         opened_at_str = trade.get("opened_at")
-        opened_at = datetime.datetime.strptime(opened_at_str, "%Y-%m-%d %H:%M") if opened_at_str else now
+        try:
+            opened_at = datetime.datetime.strptime(opened_at_str, "%Y-%m-%d %H:%M") if opened_at_str else now
+        except Exception:
+            opened_at = now
 
         # อัปเดตราคาสูงสุดที่ไม้เคยทำได้ (Highest Price Tracking)
         highest_price = max(trade.get("highest_price", entry), curr_price)
@@ -160,6 +163,10 @@ def update_open_positions():
             trail_sl_pct = highest_pnl - TRAILING_STEP_PCT
             trail_sl_price = entry * (1 + (trail_sl_pct / 100))
 
+            # อัปเดต SL ตามหลังราคาขึ้นไป
+            if trail_sl_price > trade["sl"]:
+                trade["sl"] = trail_sl_price
+
             # หากราคาย่อลงมาแตะเส้น Trailing ให้ขายทำกำไร
             if curr_price <= trail_sl_price:
                 trade["status"] = "WIN"
@@ -187,7 +194,7 @@ def update_open_positions():
             )
             send_telegram_alert(msg)
 
-        # 4. กลไก Stop Loss ตามปกติ
+        # 4. กลไก Stop Loss ตามปกติ (หรือชน Breakeven ที่ขยับมา)
         if curr_price <= trade["sl"]:
             status = "WIN" if current_pnl >= 0 else "LOSS"
             icon = "🟢" if status == "WIN" else "🔴"
@@ -207,7 +214,7 @@ def update_open_positions():
     if updated:
         save_trades(trades)
 
-# --- ระบบสรุปผลรายงาน (Daily & Weekly แบบไม่ส่งซ้ำ) ---
+# --- ระบบสรุปผลรายงาน (Daily & Weekly แบบไม่ส่งซ้ำ ป้องกัน NoneType Crash) ---
 def generate_summary_reports():
     trades = load_trades()
     state = load_state()
@@ -217,13 +224,14 @@ def generate_summary_reports():
 
     # ส่งสรุปประจำวันรอบตี 3 (03:00 น.) เพียงครั้งเดียวต่อวัน
     if now_th.hour == 3 and state.get("last_daily_report") != today_str:
-        closed_today = [t for t in trades if t.get("closed_at", "").startswith(today_str)]
-        opened_today = [t for t in trades if t.get("opened_at", "").startswith(today_str)]
-        wins = [t for t in closed_today if t["status"] == "WIN"]
-        losses = [t for t in closed_today if t["status"] in ["LOSS", "TIME_STOP"]]
+        # ป้องกัน NoneType ด้วย (t.get(...) or "")
+        closed_today = [t for t in trades if (t.get("closed_at") or "").startswith(today_str)]
+        opened_today = [t for t in trades if (t.get("opened_at") or "").startswith(today_str)]
+        wins = [t for t in closed_today if t.get("status") == "WIN"]
+        losses = [t for t in closed_today if t.get("status") in ["LOSS", "TIME_STOP"]]
         total_closed = len(closed_today)
         win_rate = (len(wins) / total_closed * 100) if total_closed > 0 else 0.0
-        realized_pnl = sum([t.get("pnl_pct", 0) for t in closed_today])
+        realized_pnl = sum([(t.get("pnl_pct") or 0) for t in closed_today])
 
         open_positions = [t for t in trades if t.get("status") == "OPEN"]
         open_text = ""
@@ -232,12 +240,13 @@ def generate_summary_reports():
             for op in open_positions:
                 sym = op["symbol"]
                 try:
-                    curr = exchange.fetch_ticker(sym)["last"]
-                    unrealized = ((curr - op["entry"]) / op["entry"]) * 100
+                    curr = float(exchange.fetch_ticker(sym)["last"])
+                    entry_val = float(op["entry"])
+                    unrealized = ((curr - entry_val) / entry_val) * 100
                     pnl_icon = "🟢" if unrealized >= 0 else "🔴"
-                    open_text += f"• `{sym}`: เข้า `{op['entry']}` | ล่าสุด `{curr}` ({pnl_icon} {unrealized:+.2f}%)\n"
+                    open_text += f"• `{sym}`: เข้า `{entry_val}` | ล่าสุด `{curr}` ({pnl_icon} {unrealized:+.2f}%)\n"
                 except Exception:
-                    open_text += f"• `{sym}`: เข้า `{op['entry']}` (รอเช็คราคา)\n"
+                    open_text += f"• `{sym}`: เข้า `{op.get('entry')}` (รอเช็คราคา)\n"
         else:
             open_text = "\n\n⏳ *ไม้ที่ถือค้างอยู่:* ไม่มี (พอร์ตว่าง 100%)"
 
@@ -258,9 +267,9 @@ def generate_summary_reports():
     # ส่งสรุปประจำสัปดาห์ (เช้าวันจันทร์ เวลา 03:00 น.)
     if now_th.weekday() == 0 and now_th.hour == 3 and state.get("last_weekly_report") != week_str:
         all_closed = [t for t in trades if t.get("status") in ["WIN", "LOSS", "TIME_STOP"]]
-        w = len([t for t in all_closed if t["status"] == "WIN"])
+        w = len([t for t in all_closed if t.get("status") == "WIN"])
         wr = (w / len(all_closed) * 100) if all_closed else 0.0
-        cum_pnl = sum([t.get("pnl_pct", 0) for t in all_closed])
+        cum_pnl = sum([(t.get("pnl_pct") or 0) for t in all_closed])
 
         weekly_msg = (
             f"📊 *[WEEKLY PERFORMANCE REPORT]*\n"
@@ -285,8 +294,8 @@ def scan_symbol(symbol: str):
     losses_today = [
         t for t in trades 
         if t.get("status") in ["LOSS", "TIME_STOP"] 
-        and t.get("closed_at", "").startswith(today_str)
-        and t.get("pnl_pct", 0) < 0
+        and (t.get("closed_at") or "").startswith(today_str)
+        and (t.get("pnl_pct") or 0) < 0
     ]
     if len(losses_today) >= MAX_DAILY_LOSSES:
         print(f"🚨 Circuit Breaker ทำงาน: วันนี้แพ้ครบ {len(losses_today)} ไม้แล้ว งดเข้าซื้อใหม่")
@@ -306,15 +315,20 @@ def scan_symbol(symbol: str):
     # 4. เช็ค Post-Loss Cooldown (ห้ามเข้าเหรียญเดิมที่เพิ่งแพ้ภายใน 2 ชม.)
     recent_losses = [
         t for t in trades 
-        if t.get("symbol") == symbol and t.get("status") in ["LOSS", "TIME_STOP"] and t.get("closed_at")
+        if t.get("symbol") == symbol 
+        and t.get("status") in ["LOSS", "TIME_STOP"] 
+        and t.get("closed_at")
     ]
     if recent_losses:
-        last_loss = max(recent_losses, key=lambda x: x["closed_at"])
-        closed_time = datetime.datetime.strptime(last_loss["closed_at"], "%Y-%m-%d %H:%M")
-        hours_passed = (now - closed_time).total_seconds() / 3600
-        if hours_passed < COOLDOWN_HOURS:
-            print(f"⏳ ข้าม {symbol}: อยู่ในช่วง Cooldown หลังแพ้ (ผ่านไป {hours_passed:.1f}/{COOLDOWN_HOURS} ชม.)")
-            return
+        try:
+            last_loss = max(recent_losses, key=lambda x: str(x.get("closed_at") or ""))
+            closed_time = datetime.datetime.strptime(last_loss["closed_at"], "%Y-%m-%d %H:%M")
+            hours_passed = (now - closed_time).total_seconds() / 3600
+            if hours_passed < COOLDOWN_HOURS:
+                print(f"⏳ ข้าม {symbol}: อยู่ในช่วง Cooldown หลังแพ้ (ผ่านไป {hours_passed:.1f}/{COOLDOWN_HOURS} ชม.)")
+                return
+        except Exception as e:
+            print(f"⚠️ Cooldown check error for {symbol}: {e}")
 
     # ด่านเทคนิคที่ 1: TF 1h
     df_1h = get_ohlcv_data(symbol, "1h", limit=250)
