@@ -129,20 +129,20 @@
     "closed_at": null,
     "pnl_pct": null,
     "ai_reason": "ทุกกฎเหล็กเป็นไปตามเกณฑ์ที่กำหนด",
-    "highest_price": 84193.6
+    "highest_price": 84596.0
   },
   {
     "id": 1790433619,
     "symbol": "ETH/USDT",
     "entry": 2688.59,
-    "highest_price": 2688.59,
-    "sl": 2661.7041,
+    "highest_price": 2713.4,
+    "sl": 2688.59,
     "tp": 2728.9189,
     "status": "OPEN",
     "opened_at": "2026-09-26 14:40",
     "closed_at": null,
     "pnl_pct": null,
-    "is_breakeven": false,
+    "is_breakeven": true,
     "trailing_active": false,
     "ai_reason": "ทุกเงื่อนไขเป็นไปตามที่กำหนด"
   }
