@@ -155,12 +155,28 @@
     "highest_price": 0.09834,
     "sl": 0.09744,
     "tp": 0.0989,
-    "status": "OPEN",
+    "status": "LOSS",
     "opened_at": "2026-09-27 09:26",
-    "closed_at": null,
-    "pnl_pct": null,
+    "closed_at": "2026-09-27 14:25",
+    "pnl_pct": -0.03,
     "is_breakeven": true,
     "trailing_active": false,
-    "ai_reason": "ราคาสูงกว่า EMA200 และ符合เงื่อนไขทั้งหมด"
+    "ai_reason": "ราคาสูงกว่า EMA200 และ符合เงื่อนไขทั้งหมด",
+    "exit_price": 0.09741
+  },
+  {
+    "id": 1790519157,
+    "symbol": "BTC/USDT",
+    "entry": 84992.0,
+    "highest_price": 84992.0,
+    "sl": 84142.08,
+    "tp": 86266.88,
+    "status": "OPEN",
+    "opened_at": "2026-09-27 14:25",
+    "closed_at": null,
+    "pnl_pct": null,
+    "is_breakeven": false,
+    "trailing_active": false,
+    "ai_reason": "ทุกข้อที่กำหนดเป็นไปตามกฎเหล็ก"
   }
 ]
