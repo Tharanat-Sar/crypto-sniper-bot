@@ -38,7 +38,9 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -f trades.json ]; then
-            git add trades.json
-            git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update paper trading ledger [skip ci]" && git push)
+          git add trades.json state.json 2>/dev/null || true
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: update paper trading ledger and state [skip ci]"
+            git pull --rebase origin main || true
+            git push origin main
           fi

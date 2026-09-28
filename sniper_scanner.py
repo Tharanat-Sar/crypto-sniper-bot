@@ -25,8 +25,8 @@ STATE_FILE = "state.json"
 
 # กฎการคุมความเสี่ยง (Risk Rules)
 MAX_OPEN_POSITIONS = 2      # จำกัดถือพร้อมกันได้สูงสุดไม่เกิน 2 ไม้
-MAX_DAILY_LOSSES = 2        # Daily Circuit Breaker: แพ้สะสมครบ 2 ไม้ในวันเดียว หยุดเปิดไม้ใหม่ทันที
-COOLDOWN_HOURS = 2          # Post-Loss Cooldown: พักเหรียญที่เพิ่งแพ้ 2 ชั่วโมง
+MAX_DAILY_LOSSES = 2        # Daily Circuit Breaker: แพ้สะสมครบ 2 ไม้ในวันเดียว หยุดเปิดไม้ใหม่ทันที (ไม่นับ BREAKEVEN)
+COOLDOWN_HOURS = 2          # Post-Loss Cooldown: พักเหรียญที่เพิ่งแพ้จริง 2 ชั่วโมง (ไม่แบนเหรียญที่เสมอตัว)
 TIME_STOP_HOURS = 24        # Time Stop: ถือแช่นานเกิน 24 ชม. บังคับปิดตลาดคืนเงินสด
 TRAILING_TRIGGER_PCT = 1.5  # แตะ +1.5% เปิดโหมด Trailing Stop (ไม่ขายหมู)
 TRAILING_STEP_PCT = 0.5     # ขยับเส้นขายตามหลังราคาสูงสุด 0.5%
@@ -163,7 +163,7 @@ def update_open_positions():
             trail_sl_pct = highest_pnl - TRAILING_STEP_PCT
             trail_sl_price = entry * (1 + (trail_sl_pct / 100))
 
-            # อัปเดต SL ตามหลังราคาขึ้นไป
+            # อัปเดต SL ตามหลังราคาขึ้นไปเรื่อยๆ
             if trail_sl_price > trade["sl"]:
                 trade["sl"] = trail_sl_price
 
@@ -194,17 +194,29 @@ def update_open_positions():
             )
             send_telegram_alert(msg)
 
-        # 4. กลไก Stop Loss ตามปกติ (หรือชน Breakeven ที่ขยับมา)
+        # 4. กลไก Stop Loss ตามปกติ (หรือหลุดเส้น Breakeven หน้าทุน)
         if curr_price <= trade["sl"]:
-            status = "WIN" if current_pnl >= 0 else "LOSS"
-            icon = "🟢" if status == "WIN" else "🔴"
+            # ตรวจสอบว่าเปิดโหมดกันหน้าทุนไว้หรือไม่
+            if trade.get("is_breakeven"):
+                status = "BREAKEVEN"
+                icon = "⚪"
+                title = "BREAKEVEN STOP"
+            elif current_pnl >= 0:
+                status = "WIN"
+                icon = "🟢"
+                title = "TAKE PROFIT"
+            else:
+                status = "LOSS"
+                icon = "🔴"
+                title = "STOP LOSS"
+
             trade["status"] = status
             trade["exit_price"] = curr_price
             trade["closed_at"] = now.strftime("%Y-%m-%d %H:%M")
             trade["pnl_pct"] = round(current_pnl, 2)
             updated = True
             msg = (
-                f"🛡️ *[PAPER TRADE: STOP LOSS]*\n"
+                f"🛡️ *[PAPER TRADE: {title}]*\n"
                 f"เหรียญ: `{symbol}`\n"
                 f"สถานะ: {icon} {status} ({trade['pnl_pct']:+.2f}%)\n"
                 f"ราคาปิด: `{curr_price}` (เป้า SL `{trade['sl']}`)"
@@ -222,13 +234,16 @@ def generate_summary_reports():
     today_str = now_th.strftime("%Y-%m-%d")
     week_str = now_th.strftime("%Y-W%U")
 
-    # ส่งสรุปประจำวันรอบตี 3 (03:00 น.) เพียงครั้งเดียวต่อวัน
-    if now_th.hour == 3 and state.get("last_daily_report") != today_str:
-        # ป้องกัน NoneType ด้วย (t.get(...) or "")
+    # ส่งสรุปประจำวันรอบท้ายชั่วโมงตี 3 (03:45 น.) เพียงรอบเดียว
+    if now_th.hour == 3 and now_th.minute >= 40 and state.get("last_daily_report") != today_str:
         closed_today = [t for t in trades if (t.get("closed_at") or "").startswith(today_str)]
         opened_today = [t for t in trades if (t.get("opened_at") or "").startswith(today_str)]
+        
         wins = [t for t in closed_today if t.get("status") == "WIN"]
-        losses = [t for t in closed_today if t.get("status") in ["LOSS", "TIME_STOP"]]
+        breakevens = [t for t in closed_today if t.get("status") == "BREAKEVEN"]
+        losses = [t for t in closed_today if t.get("status") == "LOSS"]
+        time_stops = [t for t in closed_today if t.get("status") == "TIME_STOP"]
+        
         total_closed = len(closed_today)
         win_rate = (len(wins) / total_closed * 100) if total_closed > 0 else 0.0
         realized_pnl = sum([(t.get("pnl_pct") or 0) for t in closed_today])
@@ -254,7 +269,7 @@ def generate_summary_reports():
             f"📋 *[DAILY SUMMARY REPORT - {today_str}]*\n"
             f"------------------------------------\n"
             f"🎯 ออเดอร์เปิดวันนี้: `{len(opened_today)}` ไม้ | ปิดวันนี้: `{total_closed}` ไม้\n"
-            f"🟢 ชนะ: `{len(wins)}` | 🔴 แพ้/Time Stop: `{len(losses)}`\n"
+            f"🟢 ชนะ: `{len(wins)}` | ⚪ เสมอตัว: `{len(breakevens)}` | 🔴 แพ้: `{len(losses)}` | ⏱️ Time Stop: `{len(time_stops)}`\n"
             f"🏆 Win Rate: *{win_rate:.1f}%*\n"
             f"📈 Realized PnL รวม: *{realized_pnl:+.2f}%*"
             f"{open_text}\n"
@@ -266,7 +281,7 @@ def generate_summary_reports():
 
     # ส่งสรุปประจำสัปดาห์ (เช้าวันจันทร์ เวลา 03:00 น.)
     if now_th.weekday() == 0 and now_th.hour == 3 and state.get("last_weekly_report") != week_str:
-        all_closed = [t for t in trades if t.get("status") in ["WIN", "LOSS", "TIME_STOP"]]
+        all_closed = [t for t in trades if t.get("status") in ["WIN", "BREAKEVEN", "LOSS", "TIME_STOP"]]
         w = len([t for t in all_closed if t.get("status") == "WIN"])
         wr = (w / len(all_closed) * 100) if all_closed else 0.0
         cum_pnl = sum([(t.get("pnl_pct") or 0) for t in all_closed])
@@ -290,10 +305,10 @@ def scan_symbol(symbol: str):
     now = datetime.datetime.now()
     today_str = now.strftime("%Y-%m-%d")
 
-    # 1. เช็ค Daily Circuit Breaker (ถ้าแพ้วันนี้ครบ 2 ไม้ หยุดทันที)
+    # 1. เช็ค Daily Circuit Breaker (นับเฉพาะไม้ที่ปิดแพ้ LOSS จริงๆ เท่านั้น ไม่รวม BREAKEVEN)
     losses_today = [
         t for t in trades 
-        if t.get("status") in ["LOSS", "TIME_STOP"] 
+        if t.get("status") == "LOSS"
         and (t.get("closed_at") or "").startswith(today_str)
         and (t.get("pnl_pct") or 0) < 0
     ]
@@ -312,11 +327,11 @@ def scan_symbol(symbol: str):
         print(f"⏸️ ข้าม: มีไม้ {symbol} เปิดค้างรอ TP/SL อยู่แล้ว")
         return
 
-    # 4. เช็ค Post-Loss Cooldown (ห้ามเข้าเหรียญเดิมที่เพิ่งแพ้ภายใน 2 ชม.)
+    # 4. เช็ค Post-Loss Cooldown (ห้ามเข้าเหรียญเดิมที่เพิ่งแพ้จริง LOSS ภายใน 2 ชม. ไม่แบนเหรียญที่ออกเสมอตัว)
     recent_losses = [
         t for t in trades 
         if t.get("symbol") == symbol 
-        and t.get("status") in ["LOSS", "TIME_STOP"] 
+        and t.get("status") == "LOSS"
         and t.get("closed_at")
     ]
     if recent_losses:
