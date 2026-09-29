@@ -204,13 +204,14 @@
     "highest_price": 84441.5,
     "sl": 83008.53,
     "tp": 85104.705,
-    "status": "OPEN",
+    "status": "LOSS",
     "opened_at": "2026-09-29 09:33",
-    "closed_at": null,
-    "pnl_pct": null,
+    "closed_at": "2026-09-29 15:59",
+    "pnl_pct": -1.01,
     "is_breakeven": false,
     "trailing_active": false,
-    "ai_reason": "ทุกเงื่อนไขตรงตามที่กำหนด"
+    "ai_reason": "ทุกเงื่อนไขตรงตามที่กำหนด",
+    "exit_price": 82999.3
   },
   {
     "id": 1790675812,
