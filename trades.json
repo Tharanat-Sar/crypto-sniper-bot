@@ -228,5 +228,20 @@
     "trailing_active": false,
     "ai_reason": "สัญญาณสอดคล้องกับกฎเหล็กทุกข้อ",
     "exit_price": 119.08
+  },
+  {
+    "id": 1790708423,
+    "symbol": "ETH/USDT",
+    "entry": 2695.67,
+    "highest_price": 2695.67,
+    "sl": 2668.7133,
+    "tp": 2736.105,
+    "status": "OPEN",
+    "opened_at": "2026-09-29 19:00",
+    "closed_at": null,
+    "pnl_pct": null,
+    "is_breakeven": false,
+    "trailing_active": false,
+    "ai_reason": "ราคาสูงกว่า EMA 200, RSI เหมาะสม"
   }
 ]
