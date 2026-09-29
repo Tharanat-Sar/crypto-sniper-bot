@@ -219,12 +219,13 @@
     "highest_price": 120.99,
     "sl": 119.66,
     "tp": 121.4549,
-    "status": "OPEN",
+    "status": "BREAKEVEN",
     "opened_at": "2026-09-29 09:56",
-    "closed_at": null,
-    "pnl_pct": null,
+    "closed_at": "2026-09-29 15:22",
+    "pnl_pct": -0.48,
     "is_breakeven": true,
     "trailing_active": false,
-    "ai_reason": "สัญญาณสอดคล้องกับกฎเหล็กทุกข้อ"
+    "ai_reason": "สัญญาณสอดคล้องกับกฎเหล็กทุกข้อ",
+    "exit_price": 119.08
   }
 ]
