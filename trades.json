@@ -196,5 +196,20 @@
     "trailing_active": false,
     "ai_reason": "ทุกเงื่อนไขเป็นไปตามที่กำหนด",
     "exit_price": 118.67
+  },
+  {
+    "id": 1790674424,
+    "symbol": "BTC/USDT",
+    "entry": 83847.0,
+    "highest_price": 83847.0,
+    "sl": 83008.53,
+    "tp": 85104.705,
+    "status": "OPEN",
+    "opened_at": "2026-09-29 09:33",
+    "closed_at": null,
+    "pnl_pct": null,
+    "is_breakeven": false,
+    "trailing_active": false,
+    "ai_reason": "ทุกเงื่อนไขตรงตามที่กำหนด"
   }
 ]
