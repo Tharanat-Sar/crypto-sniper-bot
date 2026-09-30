@@ -244,5 +244,20 @@
     "trailing_active": false,
     "ai_reason": "ราคาสูงกว่า EMA 200, RSI เหมาะสม",
     "exit_price": 2662.5
+  },
+  {
+    "id": 1790764471,
+    "symbol": "AVAX/USDT",
+    "entry": 11.173,
+    "highest_price": 11.173,
+    "sl": 11.0613,
+    "tp": 11.3406,
+    "status": "OPEN",
+    "opened_at": "2026-09-30 10:34",
+    "closed_at": null,
+    "pnl_pct": null,
+    "is_breakeven": false,
+    "trailing_active": false,
+    "ai_reason": "ทุกเงื่อนไขตรงตามที่กำหนด"
   }
 ]
