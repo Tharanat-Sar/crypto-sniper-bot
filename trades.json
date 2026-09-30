@@ -236,12 +236,13 @@
     "highest_price": 2695.67,
     "sl": 2668.7133,
     "tp": 2736.105,
-    "status": "OPEN",
+    "status": "LOSS",
     "opened_at": "2026-09-29 19:00",
-    "closed_at": null,
-    "pnl_pct": null,
+    "closed_at": "2026-09-30 07:12",
+    "pnl_pct": -1.23,
     "is_breakeven": false,
     "trailing_active": false,
-    "ai_reason": "ราคาสูงกว่า EMA 200, RSI เหมาะสม"
+    "ai_reason": "ราคาสูงกว่า EMA 200, RSI เหมาะสม",
+    "exit_price": 2662.5
   }
 ]
