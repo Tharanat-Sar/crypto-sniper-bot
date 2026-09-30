@@ -259,5 +259,20 @@
     "is_breakeven": false,
     "trailing_active": false,
     "ai_reason": "ทุกเงื่อนไขตรงตามที่กำหนด"
+  },
+  {
+    "id": 1790767735,
+    "symbol": "BTC/USDT",
+    "entry": 83843.1,
+    "highest_price": 83843.1,
+    "sl": 83004.669,
+    "tp": 85100.7465,
+    "status": "OPEN",
+    "opened_at": "2026-09-30 11:28",
+    "closed_at": null,
+    "pnl_pct": null,
+    "is_breakeven": false,
+    "trailing_active": false,
+    "ai_reason": "ทุกข้อกำหนดเป็นไปตามทั้งหมด"
   }
 ]
