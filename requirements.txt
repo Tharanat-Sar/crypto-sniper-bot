@@ -1,0 +1,5 @@
+ccxt
+pandas
+openai
+requests
+python-dotenv

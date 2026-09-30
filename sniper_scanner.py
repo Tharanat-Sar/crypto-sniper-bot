@@ -14,23 +14,35 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+BINANCE_API_KEY = os.getenv("BINANCE_API_KEY")
+BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-exchange = ccxt.okx({"enableRateLimit": True})
+
+# เปลี่ยนมาเชื่อมต่อ Binance พร้อมรองรับการส่งคำสั่งซื้อขายจริง
+exchange = ccxt.binance({
+    "apiKey": BINANCE_API_KEY,
+    "secret": BINANCE_API_SECRET,
+    "enableRateLimit": True,
+    "options": {"defaultType": "spot"}
+})
 
 # --- ตั้งค่ากลยุทธ์และพารามิเตอร์การควบคุมความเสี่ยง ---
 WATCHLIST = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "AVAX/USDT", "DOGE/USDT"]
 TRADES_FILE = "trades.json"
 STATE_FILE = "state.json"
 
+# ตั้งค่าขนาดไม้เงินจริง (Real Money Order Size)
+ORDER_SIZE_USDT = 12.0      # ขนาดไม้ละ 12 USDT เพื่อผ่านเกณฑ์ขั้นต่ำของ Binance
+
 # กฎการคุมความเสี่ยง (Risk Rules)
 MAX_OPEN_POSITIONS = 2      # จำกัดถือพร้อมกันได้สูงสุดไม่เกิน 2 ไม้
-MAX_DAILY_LOSSES = 2        # Daily Circuit Breaker: แพ้สะสมครบ 2 ไม้ในวันเดียว หยุดเปิดไม้ใหม่ทันที (ไม่นับ BREAKEVEN)
-COOLDOWN_HOURS = 2          # Post-Loss Cooldown: พักเหรียญที่เพิ่งแพ้จริง 2 ชั่วโมง (ไม่แบนเหรียญที่เสมอตัว)
+MAX_DAILY_LOSSES = 2        # Daily Circuit Breaker: แพ้สะสมครบ 2 ไม้ในวันเดียว หยุดเปิดไม้ใหม่ทันที
+COOLDOWN_HOURS = 2          # Post-Loss Cooldown: พักเหรียญที่เพิ่งแพ้จริง 2 ชั่วโมง
 TIME_STOP_HOURS = 24        # Time Stop: ถือแช่นานเกิน 24 ชม. บังคับปิดตลาดคืนเงินสด
-TRAILING_TRIGGER_PCT = 1.5  # แตะ +1.5% เปิดโหมด Trailing Stop (ไม่ขายหมู)
+TRAILING_TRIGGER_PCT = 1.5  # แตะ +1.5% เปิดโหมด Trailing Stop
 TRAILING_STEP_PCT = 0.5     # ขยับเส้นขายตามหลังราคาสูงสุด 0.5%
-BREAKEVEN_TRIGGER_PCT = 0.8 # แตะ +0.8% ขยับ SL มากันหน้าทุน (Entry Price)
+BREAKEVEN_TRIGGER_PCT = 0.8 # แตะ +0.8% ขยับ SL มากันหน้าทุน
 
 # --- ระบบจัดการประวัติและสถานะระบบ (Ledger & State) ---
 def load_trades():
@@ -60,7 +72,6 @@ def save_state(state):
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 def send_telegram_alert(message: str):
-    """ส่งข้อความเข้า Telegram พร้อมเว้นระยะป้องกัน Rate Limit (HTTP 429)"""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -69,9 +80,30 @@ def send_telegram_alert(message: str):
     }
     try:
         requests.post(url, json=payload, timeout=10)
-        time.sleep(1.5)  # เว้น 1.5 วินาที ป้องกัน Telegram บล็อกหรือการ์ดตกหล่น
+        time.sleep(1.5)
     except Exception as e:
         print(f"❌ Telegram Error: {e}")
+
+# --- ฟังก์ชันช่วยส่งคำสั่งซื้อขายจริง (Live Order Execution) ---
+def execute_live_buy(symbol: str, cost_usdt: float):
+    exchange.load_markets()
+    ticker = exchange.fetch_ticker(symbol)
+    price = float(ticker["last"])
+    raw_amount = cost_usdt / price
+    amount = float(exchange.amount_to_precision(symbol, raw_amount))
+    
+    order = exchange.create_market_buy_order(symbol, amount)
+    avg_price = float(order.get("average") or order.get("price") or price)
+    filled_amount = float(order.get("filled") or amount)
+    return avg_price, filled_amount
+
+def execute_live_sell(symbol: str, amount: float):
+    exchange.load_markets()
+    formatted_amount = float(exchange.amount_to_precision(symbol, amount))
+    order = exchange.create_market_sell_order(symbol, formatted_amount)
+    ticker = exchange.fetch_ticker(symbol)
+    avg_price = float(order.get("average") or order.get("price") or ticker["last"])
+    return avg_price
 
 # --- ฟังก์ชันคำนวณทางเทคนิค (Pure Pandas) ---
 def calculate_ema(series, length):
@@ -126,64 +158,65 @@ def update_open_positions():
             continue
 
         entry = float(trade["entry"])
-        sl = float(trade["sl"])
+        amount = float(trade.get("amount", 0))
         opened_at_str = trade.get("opened_at")
         try:
             opened_at = datetime.datetime.strptime(opened_at_str, "%Y-%m-%d %H:%M") if opened_at_str else now
         except Exception:
             opened_at = now
 
-        # อัปเดตราคาสูงสุดที่ไม้เคยทำได้ (Highest Price Tracking)
         highest_price = max(trade.get("highest_price", entry), curr_price)
         trade["highest_price"] = highest_price
 
         current_pnl = ((curr_price - entry) / entry) * 100
         highest_pnl = ((highest_price - entry) / entry) * 100
 
-        # 1. กลไก Time Stop (ครบ 24 ชม. ปิดตลาดเคลียร์เงินสด)
+        # 1. กลไก Time Stop (24 ชม.)
         hours_held = (now - opened_at).total_seconds() / 3600
         if hours_held >= TIME_STOP_HOURS:
+            exit_price = execute_live_sell(symbol, amount)
+            realized_pnl = ((exit_price - entry) / entry) * 100
             trade["status"] = "TIME_STOP"
-            trade["exit_price"] = curr_price
+            trade["exit_price"] = exit_price
             trade["closed_at"] = now.strftime("%Y-%m-%d %H:%M")
-            trade["pnl_pct"] = round(current_pnl, 2)
+            trade["pnl_pct"] = round(realized_pnl, 2)
             updated = True
             msg = (
-                f"⏱️ *[PAPER TRADE: 24H TIME STOP]*\n"
+                f"⏱️ *[LIVE TRADE: 24H TIME STOP]*\n"
                 f"เหรียญ: `{symbol}` (ถือครบ {hours_held:.1f} ชม.)\n"
                 f"สถานะ: ปิดคืนทุน/ตัดขาดทุนตลาด ({trade['pnl_pct']:+.2f}%)\n"
-                f"ราคาปิด: `{curr_price}`"
+                f"ราคาปิด: `{exit_price}`"
             )
             send_telegram_alert(msg)
             continue
 
-        # 2. กลไก Trailing Stop (เมื่อกำไรพุ่งเกิน +1.5% ไม่รีบขาย ปล่อยให้รันต่อ)
+        # 2. กลไก Trailing Stop (+1.5%+)
         if highest_pnl >= TRAILING_TRIGGER_PCT:
             trade["trailing_active"] = True
             trail_sl_pct = highest_pnl - TRAILING_STEP_PCT
             trail_sl_price = entry * (1 + (trail_sl_pct / 100))
 
-            # อัปเดต SL ตามหลังราคาขึ้นไปเรื่อยๆ
             if trail_sl_price > trade["sl"]:
                 trade["sl"] = trail_sl_price
 
-            # หากราคาย่อลงมาแตะเส้น Trailing ให้ขายทำกำไร
             if curr_price <= trail_sl_price:
+                exit_price = execute_live_sell(symbol, amount)
+                realized_pnl = ((exit_price - entry) / entry) * 100
                 trade["status"] = "WIN"
-                trade["exit_price"] = curr_price
+                trade["exit_price"] = exit_price
                 trade["closed_at"] = now.strftime("%Y-%m-%d %H:%M")
-                trade["pnl_pct"] = round(current_pnl, 2)
+                trade["pnl_pct"] = round(realized_pnl, 2)
                 updated = True
                 msg = (
-                    f"🚀 *[PAPER TRADE: TRAILING TAKE PROFIT]*\n"
+                    f"🚀 *[LIVE TRADE: TRAILING TAKE PROFIT]*\n"
                     f"เหรียญ: `{symbol}`\n"
                     f"สถานะ: 🟢 WIN (+{trade['pnl_pct']}%)\n"
-                    f"ราคาปิด: `{curr_price}` (จุดสูงสุดเคยแตะ +{highest_pnl:.2f}%)"
+                    f"ราคาปิด: `{exit_price}` (จุดสูงสุดเคยแตะ +{highest_pnl:.2f}%)"
                 )
                 send_telegram_alert(msg)
                 continue
 
-        # 3. กลไก Breakeven Stop (กำไรเคยแตะ +0.8% ขยับ SL มากันหน้าทุน)
+        # 3. กลไก Breakeven Stop (+0.8%)
         elif highest_pnl >= BREAKEVEN_TRIGGER_PCT and not trade.get("is_breakeven"):
             trade["sl"] = entry
             trade["is_breakeven"] = True
@@ -194,14 +227,16 @@ def update_open_positions():
             )
             send_telegram_alert(msg)
 
-        # 4. กลไก Stop Loss ตามปกติ (หรือหลุดเส้น Breakeven หน้าทุน)
+        # 4. กลไก Stop Loss / Breakeven Exit
         if curr_price <= trade["sl"]:
-            # ตรวจสอบว่าเปิดโหมดกันหน้าทุนไว้หรือไม่
-            if trade.get("is_breakeven"):
+            exit_price = execute_live_sell(symbol, amount)
+            realized_pnl = ((exit_price - entry) / entry) * 100
+
+            if trade.get("is_breakeven") and abs(trade["sl"] - entry) < 1e-4:
                 status = "BREAKEVEN"
                 icon = "⚪"
                 title = "BREAKEVEN STOP"
-            elif current_pnl >= 0:
+            elif realized_pnl >= 0:
                 status = "WIN"
                 icon = "🟢"
                 title = "TAKE PROFIT"
@@ -211,22 +246,22 @@ def update_open_positions():
                 title = "STOP LOSS"
 
             trade["status"] = status
-            trade["exit_price"] = curr_price
+            trade["exit_price"] = exit_price
             trade["closed_at"] = now.strftime("%Y-%m-%d %H:%M")
-            trade["pnl_pct"] = round(current_pnl, 2)
+            trade["pnl_pct"] = round(realized_pnl, 2)
             updated = True
             msg = (
-                f"🛡️ *[PAPER TRADE: {title}]*\n"
+                f"🛡️ *[LIVE TRADE: {title}]*\n"
                 f"เหรียญ: `{symbol}`\n"
                 f"สถานะ: {icon} {status} ({trade['pnl_pct']:+.2f}%)\n"
-                f"ราคาปิด: `{curr_price}` (เป้า SL `{trade['sl']}`)"
+                f"ราคาปิด: `{exit_price}` (เป้า SL `{trade['sl']}`)"
             )
             send_telegram_alert(msg)
 
     if updated:
         save_trades(trades)
 
-# --- ระบบสรุปผลรายงาน (Daily & Weekly แบบไม่ส่งซ้ำ ป้องกัน NoneType Crash) ---
+# --- ระบบสรุปผลรายงาน (Daily ก่อนเที่ยงคืน 23:45 น. & Weekly คืนวันอาทิตย์ 23:50 น.) ---
 def generate_summary_reports():
     trades = load_trades()
     state = load_state()
@@ -234,8 +269,8 @@ def generate_summary_reports():
     today_str = now_th.strftime("%Y-%m-%d")
     week_str = now_th.strftime("%Y-W%U")
 
-    # ส่งสรุปประจำวันรอบท้ายชั่วโมงตี 3 (03:45 น.) เพียงรอบเดียว
-    if now_th.hour == 3 and now_th.minute >= 40 and state.get("last_daily_report") != today_str:
+    # 1. ส่งสรุปประจำวันรอบก่อนเที่ยงคืน (23:45 น. เป็นต้นไป) เพียงรอบเดียว
+    if now_th.hour == 23 and now_th.minute >= 45 and state.get("last_daily_report") != today_str:
         closed_today = [t for t in trades if (t.get("closed_at") or "").startswith(today_str)]
         opened_today = [t for t in trades if (t.get("opened_at") or "").startswith(today_str)]
         
@@ -279,8 +314,9 @@ def generate_summary_reports():
         state["last_daily_report"] = today_str
         save_state(state)
 
-    # ส่งสรุปประจำสัปดาห์ (เช้าวันจันทร์ เวลา 03:00 น.)
-    if now_th.weekday() == 0 and now_th.hour == 3 and state.get("last_weekly_report") != week_str:
+    # 2. ส่งสรุปประจำสัปดาห์ (คืนวันอาทิตย์ เวลา 23:50 น.)
+    # weekday() == 6 คือวันอาทิตย์
+    if now_th.weekday() == 6 and now_th.hour == 23 and now_th.minute >= 50 and state.get("last_weekly_report") != week_str:
         all_closed = [t for t in trades if t.get("status") in ["WIN", "BREAKEVEN", "LOSS", "TIME_STOP"]]
         w = len([t for t in all_closed if t.get("status") == "WIN"])
         wr = (w / len(all_closed) * 100) if all_closed else 0.0
@@ -297,15 +333,14 @@ def generate_summary_reports():
         send_telegram_alert(weekly_msg)
         state["last_weekly_report"] = week_str
         save_state(state)
-
+        
 # --- ระบบสแกนและคัดกรองสัญญาณซื้อ (Scanner) ---
 def scan_symbol(symbol: str):
-    print(f"\n🔍 กำลังตรวจสอบ {symbol}...")
     trades = load_trades()
     now = datetime.datetime.now()
     today_str = now.strftime("%Y-%m-%d")
 
-    # 1. เช็ค Daily Circuit Breaker (นับเฉพาะไม้ที่ปิดแพ้ LOSS จริงๆ เท่านั้น ไม่รวม BREAKEVEN)
+    # 1. เช็ค Daily Circuit Breaker
     losses_today = [
         t for t in trades 
         if t.get("status") == "LOSS"
@@ -313,21 +348,18 @@ def scan_symbol(symbol: str):
         and (t.get("pnl_pct") or 0) < 0
     ]
     if len(losses_today) >= MAX_DAILY_LOSSES:
-        print(f"🚨 Circuit Breaker ทำงาน: วันนี้แพ้ครบ {len(losses_today)} ไม้แล้ว งดเข้าซื้อใหม่")
         return
 
-    # 2. เช็ค Max Open Positions (ถือพร้อมกันได้สูงสุด 2 ไม้)
+    # 2. เช็ค Max Open Positions
     open_positions = [t for t in trades if t.get("status") == "OPEN"]
     if len(open_positions) >= MAX_OPEN_POSITIONS:
-        print(f"⏸️ พอร์ตเต็ม: เปิดครบ {MAX_OPEN_POSITIONS} ไม้แล้ว")
         return
 
     # 3. เช็คว่ามีเหรียญนี้เปิดค้างอยู่หรือไม่
     if any(t.get("symbol") == symbol and t.get("status") == "OPEN" for t in trades):
-        print(f"⏸️ ข้าม: มีไม้ {symbol} เปิดค้างรอ TP/SL อยู่แล้ว")
         return
 
-    # 4. เช็ค Post-Loss Cooldown (ห้ามเข้าเหรียญเดิมที่เพิ่งแพ้จริง LOSS ภายใน 2 ชม. ไม่แบนเหรียญที่ออกเสมอตัว)
+    # 4. เช็ค Post-Loss Cooldown
     recent_losses = [
         t for t in trades 
         if t.get("symbol") == symbol 
@@ -340,17 +372,15 @@ def scan_symbol(symbol: str):
             closed_time = datetime.datetime.strptime(last_loss["closed_at"], "%Y-%m-%d %H:%M")
             hours_passed = (now - closed_time).total_seconds() / 3600
             if hours_passed < COOLDOWN_HOURS:
-                print(f"⏳ ข้าม {symbol}: อยู่ในช่วง Cooldown หลังแพ้ (ผ่านไป {hours_passed:.1f}/{COOLDOWN_HOURS} ชม.)")
                 return
-        except Exception as e:
-            print(f"⚠️ Cooldown check error for {symbol}: {e}")
+        except Exception:
+            pass
 
     # ด่านเทคนิคที่ 1: TF 1h
     df_1h = get_ohlcv_data(symbol, "1h", limit=250)
     df_1h["ema200"] = calculate_ema(df_1h["close"], 200)
     last_1h = df_1h.iloc[-1]
     if last_1h["close"] <= last_1h["ema200"]:
-        print(f"⏭️ ปัดตก: แท่ง 1h ({last_1h['close']}) อยู่ใต้ EMA 200")
         return
 
     # ด่านเทคนิคที่ 2: TF 15m
@@ -366,6 +396,10 @@ def scan_symbol(symbol: str):
     rsi_15m = float(last_15m["rsi"])
     gap_pct_15m = ((close_15m - ema200_15m) / ema200_15m) * 100
 
+    # คัดกรองเบื้องต้นก่อนส่ง OpenAI
+    if not (50 <= rsi_15m <= 65) or not (0.1 <= gap_pct_15m <= 1.0):
+        return
+
     market_snapshot = {
         "symbol": symbol,
         "tf_1h_trend": "UPTREND (Above EMA200)",
@@ -376,7 +410,7 @@ def scan_symbol(symbol: str):
         "squeeze_status": squeeze_status
     }
 
-    # ด่านที่ 3: OpenAI Risk Filter (ล็อกภาษาไทยล้วน)
+    # ด่านที่ 3: OpenAI Risk Filter
     prompt = f"""
     คุณเป็น AI Risk Manager คัดกรองสัญญาณซื้อ Day Trade (TF 15m) สำหรับคู่ Spot เป้าหมาย Win Rate 60%
     กฎเหล็ก:
@@ -407,18 +441,22 @@ def scan_symbol(symbol: str):
     decision_data = json.loads(response.choices[0].message.content)
     decision = decision_data.get("decision", "REJECT")
     reason = decision_data.get("reason", "")
-    print(f"ผลประเมิน {symbol}: {decision} ({reason})")
 
-    # ด่านที่ 4: บันทึกออเดอร์และแจ้งเตือน
+    # ด่านที่ 4: ส่งคำสั่งซื้อจริงและแจ้งเตือน
     if decision == "PASS":
-        entry = decision_data["entry"]
+        # ยิงคำสั่งซื้อ Market Buy จริงบน Binance ขนาด 12 USDT
+        entry_price, filled_amount = execute_live_buy(symbol, ORDER_SIZE_USDT)
+        sl_price = round(entry_price * 0.99, 4)
+        tp_price = round(entry_price * 1.015, 4)
+
         new_trade = {
             "id": int(datetime.datetime.now().timestamp()),
             "symbol": symbol,
-            "entry": entry,
-            "highest_price": entry,
-            "sl": decision_data["sl"],
-            "tp": decision_data["tp"],
+            "entry": entry_price,
+            "amount": filled_amount,
+            "highest_price": entry_price,
+            "sl": sl_price,
+            "tp": tp_price,
             "status": "OPEN",
             "opened_at": now.strftime("%Y-%m-%d %H:%M"),
             "closed_at": None,
@@ -431,33 +469,52 @@ def scan_symbol(symbol: str):
         save_trades(trades)
 
         msg = (
-            f"🎯 *[SNIPER SIGNAL: {symbol}]*\n"
+            f"🎯 *[LIVE ORDER ENTRY: {symbol}]*\n"
             f"-----------------------------\n"
-            f"📍 *ราคาเข้า (Entry):* `{entry}`\n"
-            f"🛡️ *ตัดขาดทุน (SL -1.0%):* `{new_trade['sl']}`\n"
-            f"💰 *เป้ากำไรแรก (TP +1.5%):* `{new_trade['tp']}`\n"
+            f"📍 *ราคาเข้า (Entry):* `{entry_price}`\n"
+            f"📦 *จำนวนที่ซื้อ:* `{filled_amount}` ({ORDER_SIZE_USDT} USDT)\n"
+            f"🛡️ *ตัดขาดทุน (SL -1.0%):* `{sl_price}`\n"
+            f"💰 *เป้ากำไรแรก (TP +1.5%):* `{tp_price}`\n"
             f"-----------------------------\n"
             f"📊 *Indicators:* RSI {rsi_15m:.1f} | Gap {gap_pct_15m:.2f}%\n"
             f"⚡ *Squeeze:* `{squeeze_status}`\n"
             f"💡 *มุมมอง AI:* {reason}\n"
-            f"📝 *โหมด Paper Trading: บันทึกไม้เข้า Ledger แล้ว*"
+            f"🟢 *สถานะ: ยิงคำสั่งซื้อจริงบน Binance สำเร็จ*"
         )
         send_telegram_alert(msg)
 
-def run():
-    print(f"🚀 เริ่มต้นระบบสไนเปอร์ [{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]...")
-    # 1. เช็คสถานะไม้ค้างเดิม (Trailing, Breakeven, SL, 24h Time Stop)
-    update_open_positions()
+# --- 24/7 VPS Main Loop ---
+def main():
+    print(f"🚀 เริ่มต้นระบบสไนเปอร์ 24/7 Live VPS [{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]...")
+    send_telegram_alert("🚀 *[SYSTEM ONLINE]* บอทสไนเปอร์เริ่มทำงานบน VPS (โหมดเงินจริง 24 ชม.) เรียบร้อยแล้ว")
+    
+    last_scan_time = 0
 
-    # 2. วนลูปสแกนหาไม้ใหม่
-    for sym in WATCHLIST:
+    while True:
         try:
-            scan_symbol(sym)
-        except Exception as e:
-            print(f"⚠️ ข้อผิดพลาดในการสแกน {sym}: {e}")
+            # 1. วนตรวจ Trailing / Breakeven / SL ทุก 10 วินาที
+            update_open_positions()
 
-    # 3. ตรวจสอบการส่งรายงาน Daily / Weekly
-    generate_summary_reports()
+            # 2. ตรวจสอบรอบส่งรายงาน Daily / Weekly
+            generate_summary_reports()
+
+            # 3. สแกนหาไม้ใหม่ทุกๆ 15 นาที (900 วินาที)
+            now_ts = time.time()
+            if now_ts - last_scan_time >= 900:
+                for sym in WATCHLIST:
+                    try:
+                        scan_symbol(sym)
+                    except Exception as e:
+                        print(f"⚠️ ข้อผิดพลาดในการสแกน {sym}: {e}")
+                last_scan_time = now_ts
+
+        except (ccxt.NetworkError, ccxt.RateLimitExceeded) as net_err:
+            print(f"⚠️ Network/RateLimit Warning: {net_err}")
+            time.sleep(15)
+        except Exception as loop_err:
+            print(f"❌ Main Loop Error: {loop_err}")
+
+        time.sleep(10)  # หน่วงเวลา 10 วินาทีก่อนวนตรวจสถานะราคาถัดไป
 
 if __name__ == "__main__":
-    run()
+    main()
